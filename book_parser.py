@@ -20,6 +20,7 @@ def download_txt(url, filename, folder='books/'):
         if not os.path.exists(folder):
             os.makedirs(folder)
 
+        # Добавить функционал id для неуникальных фалов
         with open(filepath, 'wb') as file:
             file.write(response.content)
 
