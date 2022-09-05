@@ -10,7 +10,9 @@ def check_for_redirect(response):
 
 
 def download_txt(url, filename, folder='books/'):
-    filepath = os.path.join(folder, f'{sanitize_filename(filename.strip())}_{url.split("=")[1].strip()}.txt')
+    filepath = os.path.join(folder,
+                            f'{sanitize_filename(filename.strip())}_{url.split("=")[1].strip()}.txt'
+                            )
 
     response = requests.get(url)
 
@@ -20,7 +22,6 @@ def download_txt(url, filename, folder='books/'):
         if not os.path.exists(folder):
             os.makedirs(folder)
 
-        # Добавить функционал id для неуникальных фалов
         with open(filepath, 'wb') as file:
             file.write(response.content)
 
