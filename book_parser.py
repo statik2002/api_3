@@ -10,7 +10,7 @@ def check_for_redirect(response):
 
 
 def download_txt(url, filename, folder='books/'):
-    filepath = os.path.join(folder, f'{sanitize_filename(filename)}.txt')
+    filepath = os.path.join(folder, f'{sanitize_filename(filename.strip())}_{url.split("=")[1].strip()}.txt')
 
     response = requests.get(url)
 
@@ -40,5 +40,4 @@ for i in range(1, 10):
     book_name = soup.find('h1').text.split('::')[0]
     book_url = soup.find('a', text='скачать txt')
     if book_url:
-        print(book_url['href'])
         download_txt(f'{url[:-2]}{book_url["href"]}', book_name)
