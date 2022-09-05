@@ -1,22 +1,43 @@
 import os.path
-
 import requests
 from pathvalidate import sanitize_filename
 from bs4 import BeautifulSoup
 
 
+def check_for_redirect(response):
+    if response.history:
+        raise requests.HTTPError
+
+
 def download_txt(url, filename, folder='books/'):
-    return os.path.join(folder, f'{sanitize_filename(filename)}.txt')
+    filepath = os.path.join(folder, f'{sanitize_filename(filename)}.txt')
 
-url = 'https://tululu.org/b1/'
+    response = requests.get(url)
 
-response = requests.get(url)
-response.raise_for_status()
+    try:
+        check_for_redirect(response)
 
-soup = BeautifulSoup(response.text, 'lxml')
+        if not os.path.exists(folder):
+            os.makedirs(folder)
 
-book, author = soup.find('h1').text.split('::')
+        with open(filepath, 'wb') as file:
+            file.write(response.content)
 
-print(f'Заголовок: {book.strip()}\nАвтор: {author.strip()}')
+    except:
+        pass
 
-print(download_txt('https://tululu.org/txt.php?id=1', 'Али\\би', folder='txt/'))
+
+url = 'https://tululu.org/b'
+
+for i in range(1, 10):
+
+    response = requests.get(f'{url}{str(i)}/')
+    response.raise_for_status()
+
+    soup = BeautifulSoup(response.text, 'lxml')
+
+    book_name = soup.find('h1').text.split('::')[0]
+    book_url = soup.find('a', text='скачать txt')
+    if book_url:
+        print(book_url['href'])
+        download_txt(f'{url[:-2]}{book_url["href"]}', book_name)
