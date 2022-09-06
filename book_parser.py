@@ -43,6 +43,9 @@ def download_txt(url, filename, folder='books/'):
         pass
 
 
+def download_comments(url):
+    pass
+
 url = 'https://tululu.org/b'
 
 for i in range(1, 10):
@@ -55,8 +58,12 @@ for i in range(1, 10):
     book_name = soup.find('h1').text.split('::')[0]
     book_url = soup.find('a', text='скачать txt')
     if book_url:
-        download_txt(f'{url[:-2]}{book_url["href"]}', book_name)
-        book_image_url = soup.find('div', class_='bookimage').find('a').find('img')
-        if book_image_url:
-            download_img(urljoin(url, book_image_url["src"]))
+        #download_txt(f'{url[:-2]}{book_url["href"]}', book_name)
+        #book_image_url = soup.find('div', class_='bookimage').find('a').find('img')
+        #if book_image_url:
+        #    download_img(urljoin(url, book_image_url["src"]))
 
+        book_comments = soup.find_all('div', class_='texts')
+        print(book_name)
+        for comment in book_comments:
+            print(f'-- {comment.find("span", class_="black").text}')
