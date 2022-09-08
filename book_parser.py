@@ -32,21 +32,37 @@ def download_txt(url, filename, folder='books/'):
 
     response = requests.get(url)
 
-    try:
-        check_for_redirect(response)
+    if not os.path.exists(folder):
+        os.makedirs(folder)
 
-        if not os.path.exists(folder):
-            os.makedirs(folder)
-
-        with open(filepath, 'wb') as file:
-            file.write(response.content)
-
-    except:
-        pass
+    with open(filepath, 'wb') as file:
+        file.write(response.content)
 
 
-def download_comments(url):
-    pass
+def save_comments(folder='comments/', comments=[]):
+
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+    filepath = os.path.join(folder, 'комментарии.txt')
+
+    with open(unquote(filepath), 'w') as file:
+        if not comments:
+            print('Нет комментариев', file=file)
+        print(*comments, sep='\n', file=file)
+
+
+def save_genres(folder='genres/', genres=[]):
+
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+    filepath = os.path.join(folder, 'жанры.txt')
+
+    with open(unquote(filepath), 'w') as file:
+        if not genres:
+            print('Нет жанра', file=file)
+        print(*genres, sep='\n', file=file)
 
 
 def clear_string(string):
@@ -62,37 +78,45 @@ def parse_book_page(url, page_soup):
 
     book_url = page_soup.find('a', text='скачать txt')
     if book_url:
-        #download_txt(f'{url[:-2]}{book_url["href"]}
+        download_txt(
+                    urljoin(url[:-1], book_url["href"]),
+                    filename=book["name"],
+                    folder=f'books/{book["name"]}/'
+                    )
         book['txt_url'] = f'{url[:-2]}{book_url["href"]}'
-    book_image_url = page_soup.find('div', class_='bookimage').find('a').find('img')
-    if book_image_url:
-        # download_img(urljoin(url, book_image_url["src"]))
-        book['image'] = urljoin(url, book_image_url["src"])
 
-    book_comments = page_soup.find_all('div', class_='texts')
-    #print(book_name)
-    comments = []
-    for comment in book_comments:
-        #print(f'-- {comment.find("span", class_="black").text}')
-        comments.append(comment.find("span", class_="black").text)
-    book['comments'] = comments
+        book_image_url = page_soup.find('div', class_='bookimage').find('a').find('img')
+        if book_image_url:
+            download_img(
+                        urljoin(url, book_image_url["src"]),
+                        folder=f'books/{book["name"]}/'
+                        )
+            book['image'] = urljoin(url, book_image_url["src"])
 
-    genres = []
-    book_genres = list(page_soup.find('span', class_='d_book').find_all('a'))
-    for genre in book_genres:
-        genres.append(genre.text)
+        book_comments = page_soup.find_all('div', class_='texts')
+        comments = []
+        for comment in book_comments:
+            comments.append(comment.find("span", class_="black").text)
+        save_comments(folder=f'books/{book["name"]}/', comments=comments)
+        book['comments'] = comments
 
-    book['genres'] = genres
+        genres = []
+        book_genres = list(page_soup.find('span', class_='d_book').find_all('a'))
+        for genre in book_genres:
+            genres.append(genre.text)
 
-    pprint(book)
+        save_genres(folder=f'books/{book["name"]}/', genres=genres)
+        book['genres'] = genres
+
+        pprint(book)
 
 
 def main():
     parser = argparse.ArgumentParser(
         description='Скрипт для скачивание книг с сайта https://tululu.org/',
     )
-    parser.add_argument('start_id', help='с какой книги (число)', default=1, type=int)
-    parser.add_argument('end_id', help='по какую книгу (число)', default=10, type=int)
+    parser.add_argument('start_id', help='с какой книги (число)', type=int)
+    parser.add_argument('end_id', help='по какую книгу (число)', type=int)
     args = parser.parse_args()
 
     url = 'https://tululu.org/'
@@ -108,10 +132,9 @@ def main():
 
             parse_book_page(url, soup)
 
-        except:
-            print(f'Книга №{i} - Error: {requests.HTTPError}')
+        except requests.HTTPError as exception:
+            print(f'Книга №{i} - Error: {exception}')
 
 
 if __name__ == '__main__':
     main()
-
