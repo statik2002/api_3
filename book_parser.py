@@ -121,9 +121,9 @@ def main():
 
     url = 'https://tululu.org/'
 
-    for i in range(args.start_id, args.end_id):
+    for book_id in range(args.start_id, args.end_id):
 
-        response = requests.get(f'{url}b{str(i)}/')
+        response = requests.get(f'{url}b{str(book_id)}/')
         response.raise_for_status()
 
         try:
