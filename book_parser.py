@@ -1,3 +1,4 @@
+import argparse
 import os.path
 import requests
 from urllib.parse import urljoin, urlsplit, unquote
@@ -52,56 +53,65 @@ def clear_string(string):
     return string.replace('\xa0', '')
 
 
-def parse_book_page(page_soup):
+def parse_book_page(url, page_soup):
 
-    try:
-        check_for_redirect(response)
-        book = dict()
+    book = dict()
 
-        book['name'] = clear_string(page_soup.find('h1').text.split('::')[0]).strip()
-        book['author'] = clear_string(page_soup.find('h1').text.split('::')[1]).strip()
-        book_url = page_soup.find('a', text='скачать txt')
+    book['name'] = clear_string(page_soup.find('h1').text.split('::')[0]).strip()
+    book['author'] = clear_string(page_soup.find('h1').text.split('::')[1]).strip()
 
-        if book_url:
-            #download_txt(f'{url[:-2]}{book_url["href"]}
-            book['txt_url'] = f'{url[:-2]}{book_url["href"]}'
-            book_image_url = page_soup.find('div', class_='bookimage').find('a').find('img')
-            if book_image_url:
-                # download_img(urljoin(url, book_image_url["src"]))
-                book['image'] = urljoin(url, book_image_url["src"])
+    book_url = page_soup.find('a', text='скачать txt')
+    if book_url:
+        #download_txt(f'{url[:-2]}{book_url["href"]}
+        book['txt_url'] = f'{url[:-2]}{book_url["href"]}'
+    book_image_url = page_soup.find('div', class_='bookimage').find('a').find('img')
+    if book_image_url:
+        # download_img(urljoin(url, book_image_url["src"]))
+        book['image'] = urljoin(url, book_image_url["src"])
 
-            book_comments = page_soup.find_all('div', class_='texts')
-            #print(book_name)
-            comments = []
-            for comment in book_comments:
-                #print(f'-- {comment.find("span", class_="black").text}')
-                comments.append(comment.find("span", class_="black").text)
-            book['comments'] = comments
+    book_comments = page_soup.find_all('div', class_='texts')
+    #print(book_name)
+    comments = []
+    for comment in book_comments:
+        #print(f'-- {comment.find("span", class_="black").text}')
+        comments.append(comment.find("span", class_="black").text)
+    book['comments'] = comments
 
-            genres = []
-            book_genres = list(page_soup.find('span', class_='d_book').find_all('a'))
-            for genre in book_genres:
-                genres.append(genre.text)
+    genres = []
+    book_genres = list(page_soup.find('span', class_='d_book').find_all('a'))
+    for genre in book_genres:
+        genres.append(genre.text)
 
-            book['genres'] = genres
+    book['genres'] = genres
 
-            pprint(book)
-    except:
-            pass
+    pprint(book)
 
 
-url = 'https://tululu.org/b'
+def main():
+    parser = argparse.ArgumentParser(
+        description='Скрипт для скачивание книг с сайта https://tululu.org/',
+    )
+    parser.add_argument('start_id', help='с какой книги (число)', default=1, type=int)
+    parser.add_argument('end_id', help='по какую книгу (число)', default=10, type=int)
+    args = parser.parse_args()
 
-for i in range(1, 10):
+    url = 'https://tululu.org/'
 
-    response = requests.get(f'{url}{str(i)}/')
-    response.raise_for_status()
+    for i in range(args.start_id, args.end_id):
 
-    soup = BeautifulSoup(response.text, 'lxml')
+        response = requests.get(f'{url}b{str(i)}/')
+        response.raise_for_status()
 
-    print(str(i))
-    parse_book_page(soup)
+        try:
+            check_for_redirect(response)
+            soup = BeautifulSoup(response.text, 'lxml')
+
+            parse_book_page(url, soup)
+
+        except:
+            print(f'Книга №{i} - Error: {requests.HTTPError}')
 
 
-
+if __name__ == '__main__':
+    main()
 
