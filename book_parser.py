@@ -1,5 +1,7 @@
 import argparse
 import os.path
+import time
+
 import requests
 from urllib.parse import urljoin, urlsplit, unquote
 from pathvalidate import sanitize_filename
@@ -132,8 +134,12 @@ def main():
 
             parse_book_page(url, soup)
 
-        except requests.HTTPError as exception:
-            print(f'Книга №{i} - Error: {exception}')
+        except requests.exceptions as exception:
+            if exception == requests.exceptions.ConnectionError:
+                print('Нет связи. пробуем через 5 секунд')
+                time.sleep(5)
+            if exception == requests.exceptions.HTTPError:
+                print('Ошибка запроса')
 
 
 if __name__ == '__main__':
