@@ -1,6 +1,7 @@
 import argparse
 import os.path
 import time
+import sys
 
 import requests
 from urllib.parse import urljoin, urlsplit, unquote
@@ -125,21 +126,39 @@ def main():
 
     for book_id in range(args.start_id, args.end_id):
 
-        response = requests.get(f'{url}b{str(book_id)}/')
-        response.raise_for_status()
+        print(str(book_id))
+        total_connection_try, current_connection_try = 5, 0
 
-        try:
-            check_for_redirect(response)
-            soup = BeautifulSoup(response.text, 'lxml')
+        while True and current_connection_try < total_connection_try:
 
-            parse_book_page(url, soup)
+            try:
+                response = requests.get(f'{url}b{str(book_id)}/')
+                response.raise_for_status()
 
-        except requests.exceptions as exception:
-            if exception == requests.exceptions.ConnectionError:
-                print('Нет связи. пробуем через 5 секунд')
-                time.sleep(5)
-            if exception == requests.exceptions.HTTPError:
-                print('Ошибка запроса')
+                check_for_redirect(response)
+                soup = BeautifulSoup(response.text, 'lxml')
+
+                parse_book_page(url, soup)
+
+                break
+
+            except requests.exceptions.ConnectionError:
+                print(f'Нет связи. Продолжим через 2 секунды, попыток - '
+                      f'{current_connection_try} из {total_connection_try}')
+                time.sleep(2)
+                current_connection_try += 1
+
+            except requests.exceptions.HTTPError:
+                print('Неверный ответ от сервера')
+                break
+
+            except requests.exceptions.URLRequired:
+                print('Неверный URL')
+                sys.exit()
+
+            except requests.exceptions.TooManyRedirects:
+                print('Слишком много редиректов')
+                break
 
 
 if __name__ == '__main__':
