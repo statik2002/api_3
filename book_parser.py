@@ -76,42 +76,25 @@ def parse_book_page(url, page_soup):
 
     book = dict()
 
-    book['name'] = clear_string(page_soup.find('h1').text.split('::')[0]).strip()
-    book['author'] = clear_string(page_soup.find('h1').text.split('::')[1]).strip()
+    #book['name'] = clear_string(page_soup.find('h1').text.split('::')[0]).strip()
+    #book['author'] = clear_string(page_soup.find('h1').text.split('::')[1]).strip()
+
+    book['name'], book['author'] = clear_string(page_soup.find('h1').text).strip().split('::')
 
     book_url = page_soup.find('a', text='скачать txt')
     if book_url:
-        download_txt(
-                    urljoin(url[:-1], book_url["href"]),
-                    filename=book["name"],
-                    folder=f'books/{book["name"]}/'
-                    )
         book['txt_url'] = f'{url[:-2]}{book_url["href"]}'
 
-        book_image_url = page_soup.find('div', class_='bookimage').find('a').find('img')
-        if book_image_url:
-            download_img(
-                        urljoin(url, book_image_url["src"]),
-                        folder=f'books/{book["name"]}/'
-                        )
-            book['image'] = urljoin(url, book_image_url["src"])
+    book_image_url = page_soup.find('div', class_='bookimage').find('a').find('img')
+    book['image'] = urljoin(url, book_image_url["src"])
 
-        book_comments = page_soup.find_all('div', class_='texts')
-        comments = []
-        for comment in book_comments:
-            comments.append(comment.find("span", class_="black").text)
-        save_comments(folder=f'books/{book["name"]}/', comments=comments)
-        book['comments'] = comments
+    book_comments = page_soup.find_all('div', class_='texts')
+    book['comments'] = [comment.find("span", class_="black").text for comment in book_comments]
 
-        genres = []
-        book_genres = list(page_soup.find('span', class_='d_book').find_all('a'))
-        for genre in book_genres:
-            genres.append(genre.text)
+    book_genres = list(page_soup.find('span', class_='d_book').find_all('a'))
+    book['genres'] = [genre.text for genre in book_genres]
 
-        save_genres(folder=f'books/{book["name"]}/', genres=genres)
-        book['genres'] = genres
-
-        pprint(book)
+    pprint(book)
 
 
 def main():
@@ -126,7 +109,6 @@ def main():
 
     for book_id in range(args.start_id, args.end_id):
 
-        print(str(book_id))
         total_connection_try, current_connection_try = 5, 0
 
         while True and current_connection_try < total_connection_try:
@@ -138,7 +120,7 @@ def main():
                 check_for_redirect(response)
                 soup = BeautifulSoup(response.text, 'lxml')
 
-                parse_book_page(url, soup)
+                parse_book_page(response.url, soup)
 
                 break
 
