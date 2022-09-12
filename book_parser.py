@@ -74,25 +74,26 @@ def clear_string(string):
 
 def parse_book_page(url, page_soup):
 
-    book = dict()
-
-    #book['name'] = clear_string(page_soup.find('h1').text.split('::')[0]).strip()
-    #book['author'] = clear_string(page_soup.find('h1').text.split('::')[1]).strip()
-
-    book['name'], book['author'] = clear_string(page_soup.find('h1').text).strip().split('::')
-
     book_url = page_soup.find('a', text='скачать txt')
-    if book_url:
-        book['txt_url'] = f'{url[:-2]}{book_url["href"]}'
+    if not book_url:
+        return
+
+    book_name, book_author = clear_string(page_soup.find('h1').text).strip().split('::')
 
     book_image_url = page_soup.find('div', class_='bookimage').find('a').find('img')
-    book['image'] = urljoin(url, book_image_url["src"])
 
     book_comments = page_soup.find_all('div', class_='texts')
-    book['comments'] = [comment.find("span", class_="black").text for comment in book_comments]
 
     book_genres = list(page_soup.find('span', class_='d_book').find_all('a'))
-    book['genres'] = [genre.text for genre in book_genres]
+
+    book = {
+        'book_name': book_name,
+        'book_author': book_author,
+        'book_txt_url': f'{url[:-2]}{book_url["href"]}' if book_url else None,
+        'book_image_url': urljoin(url, book_image_url["src"]),
+        'book_comments': [comment.find("span", class_="black").text for comment in book_comments],
+        'book_genres': [genre.text for genre in book_genres]
+    }
 
     pprint(book)
 
