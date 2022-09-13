@@ -1,5 +1,4 @@
 import argparse
-import os.path
 import time
 import sys
 
@@ -7,6 +6,7 @@ import requests
 from urllib.parse import urljoin, urlsplit, unquote
 from pathvalidate import sanitize_filename
 from bs4 import BeautifulSoup
+from pathlib import Path
 from pprint import pprint
 
 
@@ -15,54 +15,43 @@ def check_for_redirect(response):
         raise requests.HTTPError
 
 
-def download_img(url, folder='images/'):
+def download_img(url, folder):
 
     response = requests.get(url)
 
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-
-    filepath = os.path.join(folder, urlsplit(url)[2].split('/')[2])
-
-    with open(unquote(filepath), 'wb') as file:
-        file.write(response.content)
-
-
-def download_txt(url, filename, folder='books/'):
-    filepath = os.path.join(folder,
-                            f'{sanitize_filename(filename.strip())}_{url.split("=")[1].strip()}.txt'
-                            )
-
-    response = requests.get(url)
-
-    if not os.path.exists(folder):
-        os.makedirs(folder)
+    filepath = Path(folder).joinpath(urlsplit(url)[2].split('/')[2])
 
     with open(filepath, 'wb') as file:
         file.write(response.content)
 
 
-def save_comments(folder='comments/', comments=[]):
+def download_txt(url, filename, folder):
 
-    if not os.path.exists(folder):
-        os.makedirs(folder)
+    filepath = Path(folder).joinpath(
+        f'{sanitize_filename(filename.strip())}_{url.split("=")[1].strip()}.txt'
+    )
 
-    filepath = os.path.join(folder, 'комментарии.txt')
+    response = requests.get(url)
 
-    with open(unquote(filepath), 'w') as file:
+    with open(filepath, 'wb') as file:
+        file.write(response.content)
+
+
+def save_comments(folder, comments=[]):
+
+    filepath = Path(folder).joinpath('комментарии.txt')
+
+    with open(filepath, 'w') as file:
         if not comments:
             print('Нет комментариев', file=file)
         print(*comments, sep='\n', file=file)
 
 
-def save_genres(folder='genres/', genres=[]):
+def save_genres(folder, genres=[]):
 
-    if not os.path.exists(folder):
-        os.makedirs(folder)
+    filepath = Path(folder).joinpath('жанры.txt')
 
-    filepath = os.path.join(folder, 'жанры.txt')
-
-    with open(unquote(filepath), 'w') as file:
+    with open(filepath, 'w') as file:
         if not genres:
             print('Нет жанра', file=file)
         print(*genres, sep='\n', file=file)
@@ -72,7 +61,20 @@ def clear_string(string):
     return string.replace('\xa0', '')
 
 
-def parse_book_page(url, page_soup):
+def download_book(book, main_folder):
+
+    book_folder_name = Path(main_folder).joinpath(book['book_name'])
+
+    if not Path(book_folder_name).exists():
+        Path(book_folder_name).mkdir()
+
+    download_img(book['book_image_url'], book_folder_name)
+    download_txt(book['book_txt_url'], book['book_name'], book_folder_name)
+    save_comments(book_folder_name, book['book_comments'])
+    save_genres(book_folder_name, book['book_genres'])
+
+
+def parse_book_page(url, page_soup, main_folder):
 
     book_url = page_soup.find('a', text='скачать txt')
     if not book_url:
@@ -95,6 +97,8 @@ def parse_book_page(url, page_soup):
         'book_genres': [genre.text for genre in book_genres]
     }
 
+    download_book(book, main_folder)
+
     pprint(book)
 
 
@@ -107,6 +111,11 @@ def main():
     args = parser.parse_args()
 
     url = 'https://tululu.org/'
+
+    main_folder = 'books'
+
+    if not Path(main_folder).exists():
+        Path(main_folder).mkdir()
 
     for book_id in range(args.start_id, args.end_id):
 
@@ -121,7 +130,7 @@ def main():
                 check_for_redirect(response)
                 soup = BeautifulSoup(response.text, 'lxml')
 
-                parse_book_page(response.url, soup)
+                parse_book_page(response.url, soup, main_folder)
 
                 break
 
