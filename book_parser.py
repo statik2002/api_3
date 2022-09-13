@@ -69,8 +69,7 @@ def download_book(book, main_folder):
 
     book_folder_name = Path(main_folder).joinpath(book['book_name'])
 
-    if not Path(book_folder_name).exists():
-        Path(book_folder_name).mkdir()
+    Path(book_folder_name).mkdir(exist_ok=True)
 
     download_img(book['book_image_url'], book_folder_name)
     download_txt(book['book_txt_url'], book['book_name'], book_folder_name)
@@ -78,7 +77,7 @@ def download_book(book, main_folder):
     save_genres(book_folder_name, book['book_genres'])
 
 
-def parse_book_page(url, page_soup, main_folder):
+def parse_book_page(url, page_soup):
 
     book_url = page_soup.find('a', text='скачать txt')
     if not book_url:
@@ -94,7 +93,8 @@ def parse_book_page(url, page_soup, main_folder):
 
     book_txt_url = urljoin(url, book_url['href'])
 
-    book_comments = page_soup.find_all('div', class_='texts')
+    book_comments_raw = page_soup.find_all('div', class_='texts')
+    book_comments = [comment.find("span", class_="black").text for comment in book_comments_raw]
 
     book_genres = list(page_soup.find('span', class_='d_book').find_all('a'))
 
@@ -103,13 +103,11 @@ def parse_book_page(url, page_soup, main_folder):
         'book_author': book_author,
         'book_txt_url': book_txt_url if book_url else None,
         'book_image_url': urljoin(url, book_image_url["src"]),
-        'book_comments': [comment.find("span", class_="black").text for comment in book_comments],
+        'book_comments': book_comments,
         'book_genres': [genre.text for genre in book_genres]
     }
 
-    download_book(book, main_folder)
-
-    pprint(book)
+    return book
 
 
 def main():
@@ -124,8 +122,7 @@ def main():
 
     main_folder = 'books'
 
-    if not Path(main_folder).exists():
-        Path(main_folder).mkdir()
+    Path(main_folder).mkdir(exist_ok=True)
 
     for book_id in range(args.start_id, args.end_id):
 
@@ -140,7 +137,9 @@ def main():
                 check_for_redirect(response)
                 soup = BeautifulSoup(response.text, 'lxml')
 
-                parse_book_page(response.url, soup, main_folder)
+                book = parse_book_page(response.url, soup)
+
+                download_book(book, main_folder)
 
                 break
 
