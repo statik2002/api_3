@@ -1,9 +1,8 @@
 import argparse
 import time
 import sys
-
 import requests
-from urllib.parse import urljoin, urlsplit, unquote
+from urllib.parse import urljoin, urlsplit
 from pathvalidate import sanitize_filename
 from bs4 import BeautifulSoup
 from pathlib import Path
@@ -18,6 +17,9 @@ def check_for_redirect(response):
 def download_img(url, folder):
 
     response = requests.get(url)
+    response.raise_for_status()
+
+    check_for_redirect(response)
 
     filepath = Path(folder).joinpath(urlsplit(url)[2].split('/')[2])
 
@@ -30,8 +32,10 @@ def download_txt(url, filename, folder):
     filepath = Path(folder).joinpath(
         f'{sanitize_filename(filename.strip())}_{url.split("=")[1].strip()}.txt'
     )
-
     response = requests.get(url)
+    response.raise_for_status()
+
+    check_for_redirect(response)
 
     with open(filepath, 'wb') as file:
         file.write(response.content)
@@ -80,9 +84,15 @@ def parse_book_page(url, page_soup, main_folder):
     if not book_url:
         return
 
-    book_name, book_author = clear_string(page_soup.find('h1').text).strip().split('::')
+    book_name, book_author = clear_string(
+        page_soup.find('h1').text
+        ).strip().split('::')
 
-    book_image_url = page_soup.find('div', class_='bookimage').find('a').find('img')
+    book_image_url = page_soup.find(
+        'div', class_='bookimage'
+        ).find('a').find('img')
+
+    book_txt_url = urljoin(url, book_url['href'])
 
     book_comments = page_soup.find_all('div', class_='texts')
 
@@ -91,7 +101,7 @@ def parse_book_page(url, page_soup, main_folder):
     book = {
         'book_name': book_name,
         'book_author': book_author,
-        'book_txt_url': f'{url[:-2]}{book_url["href"]}' if book_url else None,
+        'book_txt_url': book_txt_url if book_url else None,
         'book_image_url': urljoin(url, book_image_url["src"]),
         'book_comments': [comment.find("span", class_="black").text for comment in book_comments],
         'book_genres': [genre.text for genre in book_genres]
@@ -124,7 +134,7 @@ def main():
         while True and current_connection_try < total_connection_try:
 
             try:
-                response = requests.get(f'{url}b{str(book_id)}/')
+                response = requests.get(urljoin(url, f'b{str(book_id)}/'))
                 response.raise_for_status()
 
                 check_for_redirect(response)
