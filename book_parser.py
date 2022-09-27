@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import time
 import sys
 import requests
@@ -27,6 +28,8 @@ def download_img(url, folder):
     with open(filepath, 'wb') as file:
         file.write(response.content)
 
+    return filepath
+
 
 def download_txt(url, filename, folder):
 
@@ -40,6 +43,8 @@ def download_txt(url, filename, folder):
 
     with open(filepath, 'wb') as file:
         file.write(response.content)
+
+    return filepath
 
 
 def save_comments(folder, comments=[]):
@@ -72,8 +77,10 @@ def download_book(book, main_folder):
 
     Path(book_folder_name).mkdir(exist_ok=True)
 
-    download_img(book['book_image_url'], book_folder_name)
-    download_txt(book['book_txt_url'], book['book_name'], book_folder_name)
+    image_filepath = download_img(book['book_image_url'], book_folder_name)
+    book['book_image_url'] = os.fspath(image_filepath)
+    txt_filepath = download_txt(book['book_txt_url'], book['book_name'], book_folder_name)
+    book['book_txt_url'] = os.fspath(txt_filepath)
     save_comments(book_folder_name, book['book_comments'])
     save_genres(book_folder_name, book['book_genres'])
 
@@ -168,8 +175,6 @@ def main():
                     break
 
                 download_book(book, main_folder)
-
-                print(book['book_name'], book['book_image_url'])
 
                 book_catalog.append(book)
 
