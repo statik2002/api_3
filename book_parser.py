@@ -102,8 +102,8 @@ def parse_book_page(url, page_soup):
     book_genres = list(page_soup.find('span', class_='d_book').find_all('a'))
 
     book = {
-        'book_name': book_name,
-        'book_author': book_author,
+        'book_name': book_name.strip(),
+        'book_author': book_author.strip(),
         'book_txt_url': book_txt_url if book_url else None,
         'book_image_url': urljoin(url, book_image_url["src"]),
         'book_comments': book_comments,
@@ -168,6 +168,8 @@ def main():
                     break
 
                 download_book(book, main_folder)
+
+                print(book['book_name'], book['book_image_url'])
 
                 book_catalog.append(book)
 
