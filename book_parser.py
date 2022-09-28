@@ -11,9 +11,16 @@ from pathlib import Path
 from pprint import pprint
 
 
-def check_for_redirect(response):
-    if response.history:
-        raise requests.HTTPError
+def check_for_redirect(response, scan_page=True):
+
+    if scan_page:
+        if response.history:
+            return False
+        else:
+            return True
+    else:
+        if response.history:
+            raise requests.HTTPError
 
 
 def download_img(url, folder):
@@ -71,15 +78,21 @@ def clear_string(string):
     return string.replace('\xa0', '')
 
 
-def download_book(book, main_folder):
+def download_book(book, main_folder, download_img_flag=True, download_txt_flag=True):
 
     book_folder_name = Path(main_folder).joinpath(book['book_name'])
 
     Path(book_folder_name).mkdir(exist_ok=True)
 
-    image_filepath = download_img(book['book_image_url'], book_folder_name)
+    if download_img_flag:
+        image_filepath = download_img(book['book_image_url'], book_folder_name)
+    else:
+        image_filepath = ''
     book['book_image_url'] = os.fspath(image_filepath)
-    txt_filepath = download_txt(book['book_txt_url'], book['book_name'], book_folder_name)
+    if download_txt_flag:
+        txt_filepath = download_txt(book['book_txt_url'], book['book_name'], book_folder_name)
+    else:
+        txt_filepath = ''
     book['book_txt_url'] = os.fspath(txt_filepath)
     save_comments(book_folder_name, book['book_comments'])
     save_genres(book_folder_name, book['book_genres'])
@@ -118,12 +131,15 @@ def parse_book_page(url, page_soup):
     return book
 
 
-def get_books_links(url, num_pages=2):
+def get_books_links(url, start_page=1, end_page=999):
 
     book_links = []
-    for page in range(num_pages):
+    for page in range(start_page, end_page):
         response = requests.get(urljoin(url, str(page)))
         response.raise_for_status()
+
+        if not check_for_redirect(response, scan_page=True):
+            break
 
         soup = BeautifulSoup(response.text, 'lxml')
 
@@ -140,20 +156,26 @@ def main():
     parser = argparse.ArgumentParser(
         description='Скрипт для скачивание книг с сайта https://tululu.org/',
     )
-    #parser.add_argument('start_id', help='с какой книги (число)', type=int)
-    #parser.add_argument('end_id', help='по какую книгу (число)', type=int)
+    parser.add_argument('--start_page', help='с какой страницы качать (число)', type=int, default=1)
+    parser.add_argument('--end_page', help='по какую страницу качать (число)', type=int, default=9999)
+    parser.add_argument('--dest_folder', help='путь к папке для хранения книг', default='books')
+    parser.add_argument('--skip_imgs', help='Не скачивать картинки', action="store_true")
+    parser.add_argument('--skip_txt', help='Не скачивать книги', action='store_true')
+    parser.add_argument('--json_path', help='Путь к файлу json с описанием книг', default='books')
     args = parser.parse_args()
 
-    url = 'https://tululu.org/'
     sci_fi_url = 'https://tululu.org/l55/'
 
-    main_folder = 'books'
+    img_download_flag = False if args.skip_imgs else True
+    txt_download_flag = False if args.skip_txt else True
 
     book_catalog = []
 
-    Path(main_folder).mkdir(exist_ok=True)
+    Path(args.dest_folder).mkdir(exist_ok=True)
 
-    book_links = get_books_links(sci_fi_url)
+    book_links = get_books_links(sci_fi_url, int(args.start_page), int(args.end_page))
+
+    print(*book_links, sep='\n')
 
     for book_link in book_links:
 
@@ -172,7 +194,12 @@ def main():
                 if not book:
                     break
 
-                download_book(book, main_folder)
+                download_book(
+                    book,
+                    args.dest_folder,
+                    download_img_flag=img_download_flag,
+                    download_txt_flag=txt_download_flag,
+                )
 
                 book_catalog.append(book)
 
@@ -196,7 +223,7 @@ def main():
                 print('Слишком много редиректов')
                 break
 
-    with open('books.json', 'w') as books_file:
+    with open(Path(args.json_path).joinpath('books.json'), 'w') as books_file:
         books_file.write(json.dumps(book_catalog, ensure_ascii=False))
 
 
