@@ -87,34 +87,32 @@ def download_book(book, main_folder):
 
 def parse_book_page(url, page_soup):
 
+    # Не нашел как эту конструкцию провернуть через select
     book_url = page_soup.find('a', text='скачать txt')
     if not book_url:
         return
 
-    book_name, book_author = clear_string(
-        page_soup.find('h1').text
-        ).strip().split('::')
+    book_name, book_author = clear_string(page_soup.select_one('h1').text).strip().split('::')
 
-    book_image_url = page_soup.find(
-        'div', class_='bookimage'
-        ).find('a').find('img')
+    book_image_url = page_soup.select_one(
+        'div .bookimage a img[src]'
+    )['src']
 
     book_txt_url = urljoin(url, book_url['href'])
     if not book_txt_url:
         return
 
-    book_comments_raw = page_soup.find_all('div', class_='texts')
-    book_comments = [comment.find("span", class_="black").text for comment in book_comments_raw]
+    book_comments = [comment.text for comment in page_soup.select('div.texts span.black')]
 
-    book_genres = list(page_soup.find('span', class_='d_book').find_all('a'))
+    book_genres = [genre.text for genre in page_soup.select('span.d_book a')]
 
     book = {
         'book_name': book_name.strip(),
         'book_author': book_author.strip(),
         'book_txt_url': book_txt_url if book_url else None,
-        'book_image_url': urljoin(url, book_image_url["src"]),
+        'book_image_url': urljoin(url, book_image_url),
         'book_comments': book_comments,
-        'book_genres': [genre.text for genre in book_genres]
+        'book_genres': book_genres,
     }
 
     return book
