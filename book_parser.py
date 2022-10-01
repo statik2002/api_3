@@ -10,16 +10,10 @@ from bs4 import BeautifulSoup
 from pathlib import Path
 
 
-def check_for_redirect(response, scan_page=True):
+def check_for_redirect(response):
 
-    if scan_page:
-        if response.history:
-            return False
-        else:
-            return True
-    else:
-        if response.history:
-            raise requests.HTTPError
+    if response.history:
+        raise requests.HTTPError
 
 
 def download_img(url, folder):
@@ -153,16 +147,15 @@ def get_books_links(url, start_page=1, end_page=999):
         response = requests.get(urljoin(url, str(page)))
         response.raise_for_status()
 
-        if not check_for_redirect(response, scan_page=True):
-            break
+        if check_for_redirect(response):
 
-        soup = BeautifulSoup(response.text, 'lxml')
+            soup = BeautifulSoup(response.text, 'lxml')
 
-        books = soup.find_all('table', class_='d_book')
+            books = soup.find_all('table', class_='d_book')
 
-        for book in books:
-            book_url = book.find('div', class_='bookimage').find('a')
-            book_links.append(urljoin(url, book_url['href']))
+            for book in books:
+                book_url = book.find('div', class_='bookimage').find('a')
+                book_links.append(urljoin(url, book_url['href']))
 
     return book_links
 
@@ -214,11 +207,33 @@ def main():
 
     Path(args.dest_folder).mkdir(exist_ok=True)
 
-    book_links = get_books_links(
-        sci_fi_url,
-        int(args.start_page),
-        int(args.end_page)
-    )
+    total_connection_try, current_connection_try = 5, 0
+    book_links = []
+    while True and current_connection_try < total_connection_try:
+        try:
+            book_links = get_books_links(
+                sci_fi_url,
+                int(args.start_page),
+                int(args.end_page)
+            )
+
+        except requests.exceptions.ConnectionError:
+            print(f'Нет связи. Продолжим через 2 секунды, попыток - '
+                  f'{current_connection_try} из {total_connection_try}')
+            time.sleep(2)
+            current_connection_try += 1
+
+        except requests.exceptions.HTTPError:
+            print('Неверный ответ от сервера')
+            break
+
+        except requests.exceptions.URLRequired:
+            print('Неверный URL')
+            sys.exit()
+
+        except requests.exceptions.TooManyRedirects:
+            print('Слишком много редиректов')
+            break
 
     for book_link in book_links:
 
@@ -267,7 +282,7 @@ def main():
                 break
 
     with open(Path(args.json_path).joinpath('books.json'), 'w') as books_file:
-        books_file.write(json.dumps(book_catalog, ensure_ascii=False))
+        json.dump(book_catalog, books_file, ensure_ascii=False)
 
 
 if __name__ == '__main__':
