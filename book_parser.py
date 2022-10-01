@@ -220,8 +220,6 @@ def main():
         int(args.end_page)
     )
 
-    print(*book_links, sep='\n')
-
     for book_link in book_links:
 
         total_connection_try, current_connection_try = 5, 0
