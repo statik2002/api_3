@@ -235,8 +235,8 @@ def main():
 
     book_links = get_books_links(
             sci_fi_url,
-            int(args.start_page),
-            int(args.end_page)
+            args.start_page,
+            args.end_page
     )
 
     for book_link in book_links:
