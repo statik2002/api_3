@@ -144,18 +144,44 @@ def get_books_links(url, start_page=1, end_page=999):
 
     book_links = []
     for page in range(start_page, end_page):
-        response = requests.get(urljoin(url, str(page)))
-        response.raise_for_status()
 
-        if check_for_redirect(response):
+        total_connection_try, current_connection_try = 5, 0
 
-            soup = BeautifulSoup(response.text, 'lxml')
+        while True and current_connection_try < total_connection_try:
 
-            books = soup.find_all('table', class_='d_book')
+            try:
+                response = requests.get(urljoin(url, str(page)))
 
-            for book in books:
-                book_url = book.find('div', class_='bookimage').find('a')
-                book_links.append(urljoin(url, book_url['href']))
+                response.raise_for_status()
+
+                check_for_redirect(response)
+
+                soup = BeautifulSoup(response.text, 'lxml')
+
+                books = soup.find_all('table', class_='d_book')
+
+                for book in books:
+                    book_url = book.find('div', class_='bookimage').find('a')
+                    book_links.append(urljoin(url, book_url['href']))
+
+            except requests.exceptions.ConnectionError:
+                print(f'Нет связи. Продолжим через 2 секунды, попыток - '
+                      f'{current_connection_try} из {total_connection_try}')
+                time.sleep(2)
+                current_connection_try += 1
+                continue
+
+            except requests.exceptions.HTTPError:
+                print('Неверный ответ от сервера')
+                break
+
+            except requests.exceptions.URLRequired:
+                print('Неверный URL')
+                sys.exit()
+
+            except requests.exceptions.TooManyRedirects:
+                print('Слишком много редиректов')
+                break
 
     return book_links
 
@@ -207,33 +233,11 @@ def main():
 
     Path(args.dest_folder).mkdir(exist_ok=True)
 
-    total_connection_try, current_connection_try = 5, 0
-    book_links = []
-    while True and current_connection_try < total_connection_try:
-        try:
-            book_links = get_books_links(
-                sci_fi_url,
-                int(args.start_page),
-                int(args.end_page)
-            )
-
-        except requests.exceptions.ConnectionError:
-            print(f'Нет связи. Продолжим через 2 секунды, попыток - '
-                  f'{current_connection_try} из {total_connection_try}')
-            time.sleep(2)
-            current_connection_try += 1
-
-        except requests.exceptions.HTTPError:
-            print('Неверный ответ от сервера')
-            break
-
-        except requests.exceptions.URLRequired:
-            print('Неверный URL')
-            sys.exit()
-
-        except requests.exceptions.TooManyRedirects:
-            print('Слишком много редиректов')
-            break
+    book_links = get_books_links(
+            sci_fi_url,
+            int(args.start_page),
+            int(args.end_page)
+    )
 
     for book_link in book_links:
 
